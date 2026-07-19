@@ -1,10 +1,10 @@
 import { NgOptimizedImage } from '@angular/common';
-import { Component, inject, input } from '@angular/core';
-import { randStudent, randTeacher } from '../../data-access/fake-http.service';
-import { StudentStore } from '../../data-access/student.store';
-import { TeacherStore } from '../../data-access/teacher.store';
-import { CardType } from '../../model/card.model';
+import { Component, computed, input } from '@angular/core';
 import { ListItemComponent } from '../list-item/list-item.component';
+
+export interface Store<T> {
+  addOne(item: T): void;
+}
 
 @Component({
   selector: 'app-card',
@@ -12,19 +12,14 @@ import { ListItemComponent } from '../list-item/list-item.component';
     <div
       class="flex w-fit flex-col gap-3 rounded-md border-2 border-black p-4"
       [class]="customClass()">
-      @if (type() === CardType.TEACHER) {
-        <img ngSrc="assets/img/teacher.png" width="200" height="200" alt="" />
-      }
-      @if (type() === CardType.STUDENT) {
-        <img ngSrc="assets/img/student.webp" width="200" height="200" alt="" />
-      }
+      <img [ngSrc]="imgSrc()" width="200" height="200" alt="" />
 
       <section>
         @for (item of list(); track item) {
           <app-list-item
-            [name]="item.firstName"
+            [name]="getName()(item)"
             [id]="item.id"
-            [type]="type()"></app-list-item>
+            [delete]="deleteItem()"></app-list-item>
         }
       </section>
 
@@ -36,23 +31,20 @@ import { ListItemComponent } from '../list-item/list-item.component';
     </div>
   `,
   imports: [ListItemComponent, NgOptimizedImage],
+  styleUrls: ['./card.css'],
 })
-export class CardComponent {
-  private teacherStore = inject(TeacherStore);
-  private studentStore = inject(StudentStore);
-
+export class CardComponent<T> {
   readonly list = input<any[] | null>(null);
-  readonly type = input.required<CardType>();
+  readonly store = input.required<Store<T>>();
+  readonly createItem = input.required<() => T>();
+  readonly deleteItem = input.required<(id: number) => void>();
+  readonly getName = input.required<(item: T) => string>();
+  readonly img = input.required<string>();
   readonly customClass = input('');
 
-  CardType = CardType;
+  readonly imgSrc = computed(() => `assets/img/${this.img()}`);
 
   addNewItem() {
-    const type = this.type();
-    if (type === CardType.TEACHER) {
-      this.teacherStore.addOne(randTeacher());
-    } else if (type === CardType.STUDENT) {
-      this.studentStore.addOne(randStudent());
-    }
+    this.store().addOne(this.createItem()());
   }
 }
